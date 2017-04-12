@@ -241,8 +241,10 @@ JTAG_DTM_TEST ?= MemTest64
 ifdef DEBUG
 JTAG_STAMP_SUFFIX=-debug
 JTAG_DEBUG_SUFFIX=-debug
-JTAG_VCDPLUS_32= +vcdplusfile=regression32.vcd
-JTAG_VCDPLUS_64= +vcdplusfile=regression64.vcd
+VSIM_JTAG_VCDPLUS_32= +vcdplusfile=regression32.vcd
+VSIM_JTAG_VCDPLUS_64= +vcdplusfile=regression64.vcd
+EMULATOR_JTAG_VCDPLUS_32= -v regression32.vcd
+EMULATOR_JTAG_VCDPLUS_64= -v regression64.vcd
 OPENOCD_DEBUG= -d
 else
 JTAG_STAMP_SUFFIX=-ndebug
@@ -250,7 +252,7 @@ endif
 
 stamps/%/vsim-jtag-dtm-32-$(JTAG_DTM_TEST).stamp: install_openocd stamps/%/vsim$(JTAG_STAMP_SUFFIX).stamp
 	export RISCV=$(RISCV) && $(abspath $(TOP))/riscv-tools/riscv-tests/debug/gdbserver.py \
-	--run "$(abspath $(TOP))/vsim/simv-$(PROJECT)-$*$(JTAG_DEBUG_SUFFIX) +verbose $(JTAG_VCDPLUS_32)" \
+	--run "$(abspath $(TOP))/vsim/simv-$(PROJECT)-$*$(JTAG_DEBUG_SUFFIX) +verbose $(VSIM_JTAG_VCDPLUS_32)" \
 	--cmd="$(OPENOCD_DIR)/bin/openocd $(OPENOCD_DEBUG) \
 	--s $(OPENOCD_DIR)/share/openocd/scripts" \
 	--freedom-e300-sim \
@@ -259,7 +261,7 @@ stamps/%/vsim-jtag-dtm-32-$(JTAG_DTM_TEST).stamp: install_openocd stamps/%/vsim$
 
 stamps/%/vsim-jtag-dtm-64-$(JTAG_DTM_TEST).stamp: install_openocd stamps/%/vsim$(JTAG_STAMP_SUFFIX).stamp
 	export RISCV=$(RISCV) && $(abspath $(TOP))/riscv-tools/riscv-tests/debug/gdbserver.py \
-	--run "$(abspath $(TOP))/vsim/simv-$(PROJECT)-$*$(JTAG_DEBUG_SUFFIX) +verbose $(JTAG_VCDPLUS_64)" \
+	--run "$(abspath $(TOP))/vsim/simv-$(PROJECT)-$*$(JTAG_DEBUG_SUFFIX) +verbose $(VSIM_JTAG_VCDPLUS_64)" \
 	--cmd="$(OPENOCD_INSTALL)_$(OPENOCD_VERSION)/bin/openocd $(OPENOCD_DEBUG) \
 	--s $(OPENOCD_INSTALL)_$(OPENOCD_VERSION)/share/openocd/scripts" \
 	--freedom-u500-sim \
@@ -268,7 +270,7 @@ stamps/%/vsim-jtag-dtm-64-$(JTAG_DTM_TEST).stamp: install_openocd stamps/%/vsim$
 
 stamps/%/emulator-jtag-dtm-32-$(JTAG_DTM_TEST).stamp: install_openocd stamps/%/emulator$(JTAG_STAMP_SUFFIX).stamp
 	export RISCV=$(RISCV) && $(abspath $(TOP))/riscv-tools/riscv-tests/debug/gdbserver.py \
-	--run "$(abspath $(TOP))/emulator/simv-$(PROJECT)-$*$(JTAG_DEBUG_SUFFIX) +verbose $(JTAG_VCDPLUS_32)" \
+	--run "$(abspath $(TOP))/emulator/emulator-$(PROJECT)-$*$(JTAG_DEBUG_SUFFIX) +verbose $(EMULATOR_JTAG_VCDPLUS_32) dummybin | tee emulator.log" \
 	--cmd="$(OPENOCD_DIR)/bin/openocd $(OPENOCD_DEBUG) \
 	--s $(OPENOCD_DIR)/share/openocd/scripts" \
 	--freedom-e300-sim \
@@ -277,7 +279,7 @@ stamps/%/emulator-jtag-dtm-32-$(JTAG_DTM_TEST).stamp: install_openocd stamps/%/e
 
 stamps/%/emulator-jtag-dtm-64-$(JTAG_DTM_TEST).stamp: install_openocd stamps/%/emulator$(JTAG_STAMP_SUFFIX).stamp
 	export RISCV=$(RISCV) && $(abspath $(TOP))/riscv-tools/riscv-tests/debug/gdbserver.py \
-	--run "$(abspath $(TOP))/emulator/simv-$(PROJECT)-$*$(JTAG_DEBUG_SUFFIX) +verbose $(JTAG_VCDPLUS_64)" \
+	--run "$(abspath $(TOP))/emulator/emulator-$(PROJECT)-$*$(JTAG_DEBUG_SUFFIX) +verbose $(EMULATOR_JTAG_VCDPLUS_64) dummybin | tee emulator.log" \
 	--cmd="$(OPENOCD_INSTALL)_$(OPENOCD_VERSION)/bin/openocd $(OPENOCD_DEBUG) \
 	--s $(OPENOCD_INSTALL)_$(OPENOCD_VERSION)/share/openocd/scripts" \
 	--freedom-u500-sim \
