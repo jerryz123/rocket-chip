@@ -5,7 +5,6 @@
 # Verilog sources
 
 bb_vsrcs = \
-	$(base_dir)/vsrc/jtag_vpi.v \
 	$(base_dir)/vsrc/ClockDivider2.v \
 	$(base_dir)/vsrc/AsyncResetReg.v \
 
@@ -14,13 +13,15 @@ sim_vsrcs = \
 	$(generated_dir)/$(long_name).behav_srams.v \
 	$(base_dir)/vsrc/$(TB).v \
 	$(base_dir)/vsrc/SimDTM.v \
+        $(base_dir)/vsrc/SimJTAG.v \
 	$(bb_vsrcs)
 
 # C sources
 
 sim_csrcs = \
 	$(base_dir)/csrc/SimDTM.cc \
-	$(base_dir)/csrc/jtag_vpi.c
+        $(base_dir)/csrc/SimJTAG.cc \
+        $(base_dir)/csrc/remote_bitbang.cc \
 
 #--------------------------------------------------------------------
 # Build Verilog

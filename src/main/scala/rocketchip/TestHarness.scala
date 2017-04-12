@@ -27,7 +27,7 @@ class TestHarness()(implicit p: Parameters) extends Module {
   if (!p(IncludeJtagDTM)) {
     val dtm = Module(new SimDTM).connect(clock, reset, dut.io.debug.get, io.success)
   } else {
-    val jtag = Module(new JTAGVPI).connect(dut.io.jtag.get, dut.io.jtag_reset.get, reset, io.success)
+    val jtag = Module(new SimJTAG).connect(dut.io.jtag.get, dut.io.jtag_reset.get, reset, io.success)
   }
 
   val mmio_sim = Module(LazyModule(new SimAXIMem(1, 4096)).module)
@@ -85,17 +85,16 @@ class SimDTM(implicit p: Parameters) extends BlackBox {
   }
 }
 
-class JTAGVPI(implicit val p: Parameters) extends BlackBox {
+class SimJTAG(implicit val p: Parameters) extends BlackBox {
   val io = new Bundle {
-    val jtag = new JTAGIO(hasTRSTn = false)
+    val jtag = new JTAGIO(hasTRSTn = true)
     val enable = Bool(INPUT)
     val init_done = Bool(INPUT)
+    val exit = UInt(OUTPUT, 32)
   }
 
   def connect(dutio: JTAGIO, jtag_reset: Bool, tbreset: Bool, tbsuccess: Bool) = {
     dutio <> io.jtag
-
-    dutio.TRSTn.foreach{ _:= false.B}
     jtag_reset := tbreset
 
     io.enable    := ~tbreset
@@ -103,6 +102,10 @@ class JTAGVPI(implicit val p: Parameters) extends BlackBox {
 
     // Success is determined by the gdbserver
     // which is controlling this simulation.
-    tbsuccess := Bool(false)
+    tbsuccess := io.exit === UInt(1)
+    when (io.exit >= UInt(2)) {
+      printf("*** FAILED *** (exit code = %d)\n", io.exit >> UInt(1))
+      stop(1)
+    }
   }
 }
