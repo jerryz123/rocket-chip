@@ -46,6 +46,11 @@ class MStatus extends Bundle {
   val uie = Bool()
 }
 
+class VecStatus extends Bundle {
+  val vl = UInt(width=64)
+  val vtypes = Vec(32, Bits(width=16))
+}
+
 class DCSR extends Bundle {
   val xdebugver = UInt(width = 2)
   val zero4 = UInt(width=2)
@@ -208,6 +213,7 @@ class CSRFileIO(implicit p: Parameters) extends CoreBundle
   val counters = Vec(nPerfCounters, new PerfCounterIO)
   val inst = Vec(retireWidth, UInt(width = iLen)).asInput
   val trace = Vec(retireWidth, new TracedInstruction).asOutput
+  val vecstatus = new VecStatus().asOutput
 }
 
 class CSRFile(perfEventSets: EventSets = new EventSets(Seq()))(implicit p: Parameters) extends CoreModule()(p)
@@ -385,14 +391,14 @@ class CSRFile(perfEventSets: EventSets = new EventSets(Seq()))(implicit p: Param
     CSRs.vxrm   -> reg_vxrm,
     CSRs.vxsat  -> reg_vxsat,
     CSRs.vl     -> reg_vl,
-    CSRs.vcfg0  -> Cat(reg_vtypes(1),  reg_vtypes(0)),
-    CSRs.vcfg2  -> Cat(reg_vtypes(3),  reg_vtypes(2)),
-    CSRs.vcfg4  -> Cat(reg_vtypes(5),  reg_vtypes(4)),
-    CSRs.vcfg6  -> Cat(reg_vtypes(7),  reg_vtypes(6)),
-    CSRs.vcfg8  -> Cat(reg_vtypes(9),  reg_vtypes(8)),
-    CSRs.vcfg10 -> Cat(reg_vtypes(11), reg_vtypes(10)),
-    CSRs.vcfg12 -> Cat(reg_vtypes(13), reg_vtypes(12)),
-    CSRs.vcfg14 -> Cat(reg_vtypes(15), reg_vtypes(14))
+    CSRs.vcfg0  -> Cat(reg_vtypes(3),  reg_vtypes(2),  reg_vtypes(1),  reg_vtypes(0)),
+    CSRs.vcfg2  -> Cat(reg_vtypes(7),  reg_vtypes(6),  reg_vtypes(5),  reg_vtypes(4)),
+    CSRs.vcfg4  -> Cat(reg_vtypes(11), reg_vtypes(10), reg_vtypes(9),  reg_vtypes(8)),
+    CSRs.vcfg6  -> Cat(reg_vtypes(15), reg_vtypes(14), reg_vtypes(13), reg_vtypes(12)),
+    CSRs.vcfg8  -> Cat(reg_vtypes(19), reg_vtypes(18), reg_vtypes(17), reg_vtypes(16)),
+    CSRs.vcfg10 -> Cat(reg_vtypes(23), reg_vtypes(22), reg_vtypes(21), reg_vtypes(20)),
+    CSRs.vcfg12 -> Cat(reg_vtypes(27), reg_vtypes(26), reg_vtypes(25), reg_vtypes(24)),
+    CSRs.vcfg14 -> Cat(reg_vtypes(31), reg_vtypes(30), reg_vtypes(29), reg_vtypes(28))
   )
 
   // TODO Parametrize this
@@ -715,27 +721,43 @@ class CSRFile(perfEventSets: EventSets = new EventSets(Seq()))(implicit p: Param
     when (decoded_addr(CSRs.vcs))   { reg_vl    := wdata >> 4;
                                       reg_vxrm  := wdata >> 1;
                                       reg_vxsat := wdata; }
-    when (decoded_addr(CSRs.vl))    { reg_vl    := wdata }
+    when (decoded_addr(CSRs.vl))    { reg_vl    := 4 }
     when (decoded_addr(CSRs.vxrm))  { reg_vxrm  := wdata }
     when (decoded_addr(CSRs.vxsat)) { reg_vxsat := wdata }
 
     // Todo: Make writes zero all above
-    when (decoded_addr(CSRs.vcfg0))  { reg_vtypes(0)  := wdata;
-                                       reg_vtypes(1)  := wdata >> 16; }
-    when (decoded_addr(CSRs.vcfg2))  { reg_vtypes(2)  := wdata;
-                                       reg_vtypes(3)  := wdata >> 16; }
-    when (decoded_addr(CSRs.vcfg4))  { reg_vtypes(4)  := wdata;
-                                       reg_vtypes(5)  := wdata >> 16; }
-    when (decoded_addr(CSRs.vcfg6))  { reg_vtypes(6)  := wdata;
-                                       reg_vtypes(7)  := wdata >> 16; }
-    when (decoded_addr(CSRs.vcfg8))  { reg_vtypes(8)  := wdata;
-                                       reg_vtypes(9)  := wdata >> 16; }
-    when (decoded_addr(CSRs.vcfg10)) { reg_vtypes(10) := wdata;
-                                       reg_vtypes(11) := wdata >> 16; }
-    when (decoded_addr(CSRs.vcfg12)) { reg_vtypes(12) := wdata;
-                                       reg_vtypes(13) := wdata >> 16; }
-    when (decoded_addr(CSRs.vcfg14)) { reg_vtypes(14) := wdata;
-                                       reg_vtypes(15) := wdata >> 16; }
+    when (decoded_addr(CSRs.vcfg0))  { reg_vtypes(0)   := wdata;
+                                       reg_vtypes(1)   := wdata >> 16;
+                                       reg_vtypes(2)   := wdata >> 32;
+                                       reg_vtypes(3)   := wdata >> 48; }
+    when (decoded_addr(CSRs.vcfg2))  { reg_vtypes(4)   := wdata;
+                                       reg_vtypes(5)   := wdata >> 16;
+                                       reg_vtypes(6)   := wdata >> 32;
+                                       reg_vtypes(7)   := wdata >> 48; }
+    when (decoded_addr(CSRs.vcfg4))  { reg_vtypes(8)   := wdata;
+                                       reg_vtypes(9)   := wdata >> 16;
+                                       reg_vtypes(10)  := wdata >> 32;
+                                       reg_vtypes(11)  := wdata >> 48; }
+    when (decoded_addr(CSRs.vcfg6))  { reg_vtypes(12)  := wdata;
+                                       reg_vtypes(13)  := wdata >> 16;
+                                       reg_vtypes(14)  := wdata >> 32;
+                                       reg_vtypes(15)  := wdata >> 48; }
+    when (decoded_addr(CSRs.vcfg8))  { reg_vtypes(16)  := wdata;
+                                       reg_vtypes(17)  := wdata >> 16;
+                                       reg_vtypes(18)  := wdata >> 32;
+                                       reg_vtypes(19)  := wdata >> 48; }
+    when (decoded_addr(CSRs.vcfg10)) { reg_vtypes(20)  := wdata;
+                                       reg_vtypes(21)  := wdata >> 16;
+                                       reg_vtypes(22)  := wdata >> 32;
+                                       reg_vtypes(23)  := wdata >> 48; }
+    when (decoded_addr(CSRs.vcfg12)) { reg_vtypes(24)  := wdata;
+                                       reg_vtypes(25)  := wdata >> 16;
+                                       reg_vtypes(26)  := wdata >> 32;
+                                       reg_vtypes(27)  := wdata >> 48; }
+    when (decoded_addr(CSRs.vcfg14)) { reg_vtypes(28)  := wdata;
+                                       reg_vtypes(29)  := wdata >> 16;
+                                       reg_vtypes(30)  := wdata >> 32;
+                                       reg_vtypes(31)  := wdata >> 48; }
 
     if (usingDebug) {
       when (decoded_addr(CSRs.dcsr)) {
