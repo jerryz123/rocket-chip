@@ -307,6 +307,14 @@ class CSRFile(perfEventSets: EventSets = new EventSets(Seq()))(implicit p: Param
   val reg_hpmcounter = io.counters.map(c => WideCounter(CSR.hpmWidth, c.inc, reset = false))
   val hpm_mask = reg_mcounteren & Mux((!usingVM).B || reg_mstatus.prv === PRV.S, delegable_counters.U, reg_scounteren)
 
+  // Todo: Fix and parametrize here?
+  val reg_vl = Reg(UInt(width=32))
+  val reg_vtypes = Reg(Vec(32, Bits(width=16)))
+  val reg_vmaxew = 0.asUInt(6.W)
+  val reg_vxrm = Reg(Bits(width=3))
+  val reg_vxsat = Reg(Bits(width=1))
+
+
   val mip = Wire(init=reg_mip)
   mip.lip := (io.interrupts.lip: Seq[Bool])
   mip.mtip := io.interrupts.mtip
@@ -371,6 +379,24 @@ class CSRFile(perfEventSets: EventSets = new EventSets(Seq()))(implicit p: Param
     CSRs.fflags -> reg_fflags,
     CSRs.frm -> reg_frm,
     CSRs.fcsr -> Cat(reg_frm, reg_fflags))
+
+  val vec_csrs = LinkedHashMap[Int,Bits](
+    CSRs.vcs    -> Cat(reg_vl, reg_vxrm, reg_vxsat),
+    CSRs.vxrm   -> reg_vxrm,
+    CSRs.vxsat  -> reg_vxsat,
+    CSRs.vl     -> reg_vl,
+    CSRs.vcfg0  -> Cat(reg_vtypes(1),  reg_vtypes(0)),
+    CSRs.vcfg2  -> Cat(reg_vtypes(3),  reg_vtypes(2)),
+    CSRs.vcfg4  -> Cat(reg_vtypes(5),  reg_vtypes(4)),
+    CSRs.vcfg6  -> Cat(reg_vtypes(7),  reg_vtypes(6)),
+    CSRs.vcfg8  -> Cat(reg_vtypes(9),  reg_vtypes(8)),
+    CSRs.vcfg10 -> Cat(reg_vtypes(11), reg_vtypes(10)),
+    CSRs.vcfg12 -> Cat(reg_vtypes(13), reg_vtypes(12)),
+    CSRs.vcfg14 -> Cat(reg_vtypes(15), reg_vtypes(14))
+  )
+
+  // TODO Parametrize this
+  read_mapping ++= vec_csrs
 
   if (usingDebug)
     read_mapping ++= debug_csrs
@@ -684,6 +710,33 @@ class CSRFile(perfEventSets: EventSets = new EventSets(Seq()))(implicit p: Param
       when (decoded_addr(CSRs.frm))    { reg_frm := wdata }
       when (decoded_addr(CSRs.fcsr))   { reg_fflags := wdata; reg_frm := wdata >> reg_fflags.getWidth }
     }
+
+    // Todo: Parametrize this
+    when (decoded_addr(CSRs.vcs))   { reg_vl    := wdata >> 4;
+                                      reg_vxrm  := wdata >> 1;
+                                      reg_vxsat := wdata; }
+    when (decoded_addr(CSRs.vl))    { reg_vl    := wdata }
+    when (decoded_addr(CSRs.vxrm))  { reg_vxrm  := wdata }
+    when (decoded_addr(CSRs.vxsat)) { reg_vxsat := wdata }
+
+    // Todo: Make writes zero all above
+    when (decoded_addr(CSRs.vcfg0))  { reg_vtypes(0)  := wdata;
+                                       reg_vtypes(1)  := wdata >> 16; }
+    when (decoded_addr(CSRs.vcfg2))  { reg_vtypes(2)  := wdata;
+                                       reg_vtypes(3)  := wdata >> 16; }
+    when (decoded_addr(CSRs.vcfg4))  { reg_vtypes(4)  := wdata;
+                                       reg_vtypes(5)  := wdata >> 16; }
+    when (decoded_addr(CSRs.vcfg6))  { reg_vtypes(6)  := wdata;
+                                       reg_vtypes(7)  := wdata >> 16; }
+    when (decoded_addr(CSRs.vcfg8))  { reg_vtypes(8)  := wdata;
+                                       reg_vtypes(9)  := wdata >> 16; }
+    when (decoded_addr(CSRs.vcfg10)) { reg_vtypes(10) := wdata;
+                                       reg_vtypes(11) := wdata >> 16; }
+    when (decoded_addr(CSRs.vcfg12)) { reg_vtypes(12) := wdata;
+                                       reg_vtypes(13) := wdata >> 16; }
+    when (decoded_addr(CSRs.vcfg14)) { reg_vtypes(14) := wdata;
+                                       reg_vtypes(15) := wdata >> 16; }
+
     if (usingDebug) {
       when (decoded_addr(CSRs.dcsr)) {
         val new_dcsr = new DCSR().fromBits(wdata)
