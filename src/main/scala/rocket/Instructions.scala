@@ -246,6 +246,7 @@ object Instructions {
   def RDINSTRETH         = BitPat("b11001000001000000010?????1110011")
   def SCALL              = BitPat("b00000000000000000000000001110011")
   def SBREAK             = BitPat("b00000000000100000000000001110011")
+  def VADD               = BitPat("b1000000??????????1???????1100111")
 }
 object Causes {
   val misaligned_fetch = 0x0

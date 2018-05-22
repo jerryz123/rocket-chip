@@ -94,3 +94,21 @@ trait MemoryOpConstants {
   def isWrite(cmd: UInt) = cmd === M_XWR || cmd === M_PWR || cmd === M_XSC || isAMO(cmd)
   def isWriteIntent(cmd: UInt) = isWrite(cmd) || cmd === M_PFW || cmd === M_XLR
 }
+
+trait VecCfgConstants {
+   val VSHAPE_SZ = 5
+   val VSHAPE_SCALAR = UInt("b00000")
+   val VSHAPE_VECTOR = UInt("b00100")
+
+   val VEREP_SZ = 5
+   val VEREP_UINT = UInt("b00000")
+   val VEREP_INT = UInt("b00010")
+   val VEREP_FP = UInt("b00011")
+
+   val VEW_SZ = 6
+   val VEW_DISABLE = UInt("b000000")
+   val VEW_8  = UInt("b001000")
+   val VEW_16 = UInt("b010000")
+   val VEW_32 = UInt("b011000")
+   val VEW_64 = UInt("b100000")
+}
