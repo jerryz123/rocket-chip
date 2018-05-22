@@ -727,34 +727,54 @@ class CSRFile(perfEventSets: EventSets = new EventSets(Seq()))(implicit p: Param
     }
 
      // TODO_Vec: This code is all terrible and needs to be refactored
-    def validate_vcfg(wdata: Bits) = {
-       val new_types = (0 until 4).map(x=>(wdata >> (x*16)))
+    def validate_vcfg(wdata: UInt, idx: Int) = {
+       val new_types   = (0 until 4).map(x=>(wdata >> (x*16)) & UInt("hffff"))
        val new_enabled = new_types.map(x=>x(5, 0) =/= VEW_DISABLE)
        val new_vshapes = new_types.map(x=>x(15, 11))
-       val new_vereps = new_types.map(x=>x(10, 6))
-       val new_vews = new_types.map(x=>x(5, 0))
+       val new_vereps  = new_types.map(x=>x(10, 6))
+       val new_vews    = new_types.map(x=>x(5, 0))
 
        // Check that shape encoding is scalarq
        val valid_shape_i = (0 until 4).map(x=> !(new_enabled(x)) || new_vshapes(x) === VSHAPE_VECTOR)
-       val valid_shape = valid_shape_i.reduce(_&&_)
+       val valid_shape   = valid_shape_i.reduce(_&&_)
 
        when (!valid_shape) {
           printf("Error in vcfg. Only vectors supported right now, %x %x\n", wdata, Cat(valid_shape_i))
        }
        // Check that element type is correct
        val valid_erep_i = (0 until 4).map(x=> (!new_enabled(x)) || new_vereps(x) === VEREP_FP)
-       val valid_erep = valid_erep_i.reduce(_&&_)
+       val valid_erep   = valid_erep_i.reduce(_&&_)
        when (!valid_erep) {
           printf("Error in vcfg. Only IEEE fp supported right now, %x %x\n", wdata, Cat(valid_erep_i))
        }
 
        // Check that element width is correct
        val valid_ew_i = (0 until 4).map(x=> (!new_enabled(x)) || (new_vews(x) === VEW_32 || new_vews(x) === VEW_64))
-       val valid_ew = valid_ew_i.reduce(_&&_)
+       val valid_ew   = valid_ew_i.reduce(_&&_)
        when (!valid_ew) {
           printf("Error in vcfg. Only 64/32 W supported right now, %x %x\n", wdata, Cat(valid_ew_i))
        }
-       assert(valid_shape && valid_erep && valid_ew, "ERROR. Vector cfg exception handling not enabled yet, so we abort instead")
+
+       val all_types   = (0 until 32).map(x=> if (x < idx) reg_vtypes(x) else
+                                             (if (x < idx + 4) (wdata >> ((x - idx) * 16))(15, 0) & UInt("hffff") else UInt(0, width=16)))
+       val all_enabled = all_types.map(x=>x(5,0) =/= VEW_DISABLE)
+       val all_vshapes = all_types.map(x=>x(15,11))
+       val all_vereps  = all_types.map(x=>x(10,6))
+       val all_vews    = all_types.map(x=>x(5, 0))
+       val enabled_vshapes = (0 until 32).map(x=>(all_enabled(x) && (all_vshapes(x) === VSHAPE_VECTOR)))
+       val ff = FindFirst(Vec(enabled_vshapes), 32, 0, (x: Int) => Bool(true))
+       val first_vec_ew = Mux1H(ff, all_vews)
+       val all_vshapes_equal = (0 until 32).map(x=> !enabled_vshapes(x) || all_vews(x) === first_vec_ew).reduce(_&&_)
+       // TODO_Vec: Hack right now, also this assumes at least 1 configured regsiter
+       for (i <- 0 until 32) {
+          printf("%d %x %x %x %x\n", i, all_types(i), all_vshapes(i), all_enabled(i), enabled_vshapes(i))
+       }
+       when (!all_vshapes_equal) {
+          printf("Error in vcfg. Right now all vector regs must be same length, and you need at least 1 %x %x %x\n",
+             Cat(all_vshapes_equal), Cat(enabled_vshapes), first_vec_ew)
+       }
+
+       assert(all_vshapes_equal && valid_shape && valid_erep && valid_ew, "ERROR. Vector cfg exception handling not enabled yet, so we abort instead")
        valid_shape && valid_erep && valid_ew
     }
     //Todo_vec: Parametrize this
@@ -767,60 +787,60 @@ class CSRFile(perfEventSets: EventSets = new EventSets(Seq()))(implicit p: Param
     when (decoded_addr(CSRs.vxsat)) { reg_vxsat := wdata }
 
     // Todo: Make writes zero all above
-    when (decoded_addr(CSRs.vcfg0))  { reg_vtypes(0)   := wdata;
-                                       reg_vtypes(1)   := wdata >> 16;
-                                       reg_vtypes(2)   := wdata >> 32;
-                                       reg_vtypes(3)   := wdata >> 48;
+    when (decoded_addr(CSRs.vcfg0))  { reg_vtypes(0)   := wdata       & UInt("hffff");
+                                       reg_vtypes(1)   := wdata >> 16 & UInt("hffff");
+                                       reg_vtypes(2)   := wdata >> 32 & UInt("hffff");
+                                       reg_vtypes(3)   := wdata >> 48 & UInt("hffff");
                                        for (x <- 4 until 32) { reg_vtypes(x) := UInt(0, width=16) }
-                                       validate_vcfg(wdata)
+                                       validate_vcfg(wdata, 0)
     }
-    when (decoded_addr(CSRs.vcfg2))  { reg_vtypes(4)   := wdata;
-                                       reg_vtypes(5)   := wdata >> 16;
-                                       reg_vtypes(6)   := wdata >> 32;
-                                       reg_vtypes(7)   := wdata >> 48;
+    when (decoded_addr(CSRs.vcfg2))  { reg_vtypes(4)   := wdata       & UInt("hffff");
+                                       reg_vtypes(5)   := wdata >> 16 & UInt("hffff");
+                                       reg_vtypes(6)   := wdata >> 32 & UInt("hffff");
+                                       reg_vtypes(7)   := wdata >> 48 & UInt("hffff");
                                        for (x <- 8 until 32) { reg_vtypes(x) := UInt(0, width=16) }
-                                       validate_vcfg(wdata)
+                                       validate_vcfg(wdata, 4)
     }
-    when (decoded_addr(CSRs.vcfg4))  { reg_vtypes(8)   := wdata;
-                                       reg_vtypes(9)   := wdata >> 16;
-                                       reg_vtypes(10)  := wdata >> 32;
-                                       reg_vtypes(11)  := wdata >> 48;
+    when (decoded_addr(CSRs.vcfg4))  { reg_vtypes(8)   := wdata       & UInt("hffff");
+                                       reg_vtypes(9)   := wdata >> 16 & UInt("hffff");
+                                       reg_vtypes(10)  := wdata >> 32 & UInt("hffff");
+                                       reg_vtypes(11)  := wdata >> 48 & UInt("hffff");
                                        for (x <- 12 until 32) { reg_vtypes(x) := UInt(0, width=16) }
-                                       validate_vcfg(wdata)
+                                       validate_vcfg(wdata, 8)
     }
-    when (decoded_addr(CSRs.vcfg6))  { reg_vtypes(12)  := wdata;
-                                       reg_vtypes(13)  := wdata >> 16;
-                                       reg_vtypes(14)  := wdata >> 32;
-                                       reg_vtypes(15)  := wdata >> 48;
+    when (decoded_addr(CSRs.vcfg6))  { reg_vtypes(12)  := wdata       & UInt("hffff");
+                                       reg_vtypes(13)  := wdata >> 16 & UInt("hffff");
+                                       reg_vtypes(14)  := wdata >> 32 & UInt("hffff");
+                                       reg_vtypes(15)  := wdata >> 48 & UInt("hffff");
                                        for (x <- 16 until 32) { reg_vtypes(x) := UInt(0, width=16) }
-                                       validate_vcfg(wdata)
+                                       validate_vcfg(wdata, 12)
     }
-    when (decoded_addr(CSRs.vcfg8))  { reg_vtypes(16)  := wdata;
-                                       reg_vtypes(17)  := wdata >> 16;
-                                       reg_vtypes(18)  := wdata >> 32;
-                                       reg_vtypes(19)  := wdata >> 48;
+    when (decoded_addr(CSRs.vcfg8))  { reg_vtypes(16)  := wdata       & UInt("hffff");
+                                       reg_vtypes(17)  := wdata >> 16 & UInt("hffff");
+                                       reg_vtypes(18)  := wdata >> 32 & UInt("hffff");
+                                       reg_vtypes(19)  := wdata >> 48 & UInt("hffff");
                                        for (x <- 20 until 32) { reg_vtypes(x) := UInt(0, width=16) }
-                                       validate_vcfg(wdata)
+                                       validate_vcfg(wdata, 16)
     }
-    when (decoded_addr(CSRs.vcfg10)) { reg_vtypes(20)  := wdata;
-                                       reg_vtypes(21)  := wdata >> 16;
-                                       reg_vtypes(22)  := wdata >> 32;
-                                       reg_vtypes(23)  := wdata >> 48;
+    when (decoded_addr(CSRs.vcfg10)) { reg_vtypes(20)  := wdata       & UInt("hffff");
+                                       reg_vtypes(21)  := wdata >> 16 & UInt("hffff");
+                                       reg_vtypes(22)  := wdata >> 32 & UInt("hffff");
+                                       reg_vtypes(23)  := wdata >> 48 & UInt("hffff");
                                        for (x <- 24 until 32) { reg_vtypes(x) := UInt(0, width=16) }
-                                       validate_vcfg(wdata)
+                                       validate_vcfg(wdata, 20)
     }
-    when (decoded_addr(CSRs.vcfg12)) { reg_vtypes(24)  := wdata;
-                                       reg_vtypes(25)  := wdata >> 16;
-                                       reg_vtypes(26)  := wdata >> 32;
-                                       reg_vtypes(27)  := wdata >> 48;
+    when (decoded_addr(CSRs.vcfg12)) { reg_vtypes(24)  := wdata       & UInt("hffff");
+                                       reg_vtypes(25)  := wdata >> 16 & UInt("hffff");
+                                       reg_vtypes(26)  := wdata >> 32 & UInt("hffff");
+                                       reg_vtypes(27)  := wdata >> 48 & UInt("hffff");
                                        for (x <- 28 until 32) { reg_vtypes(x) := UInt(0, width=16) }
-                                       validate_vcfg(wdata)
+                                       validate_vcfg(wdata, 24)
     }
-    when (decoded_addr(CSRs.vcfg14)) { reg_vtypes(28)  := wdata;
-                                       reg_vtypes(29)  := wdata >> 16;
-                                       reg_vtypes(30)  := wdata >> 32;
-                                       reg_vtypes(31)  := wdata >> 48;
-                                       validate_vcfg(wdata)
+    when (decoded_addr(CSRs.vcfg14)) { reg_vtypes(28)  := wdata       & UInt("hffff");
+                                       reg_vtypes(29)  := wdata >> 16 & UInt("hffff");
+                                       reg_vtypes(30)  := wdata >> 32 & UInt("hffff");
+                                       reg_vtypes(31)  := wdata >> 48 & UInt("hffff");
+                                       validate_vcfg(wdata, 28)
     }
 
     if (usingDebug) {
