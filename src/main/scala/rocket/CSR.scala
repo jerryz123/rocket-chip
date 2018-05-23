@@ -315,7 +315,7 @@ class CSRFile(perfEventSets: EventSets = new EventSets(Seq()))(implicit p: Param
   val reg_hpmcounter = io.counters.map(c => WideCounter(CSR.hpmWidth, c.inc, reset = false))
   val hpm_mask = reg_mcounteren & Mux((!usingVM).B || reg_mstatus.prv === PRV.S, delegable_counters.U, reg_scounteren)
 
-  // Todo: Fix and parametrize here?
+  // Todo_vec: Fix and parametrize here?
   val reg_vl = Reg(UInt(width=32))
   io.vecstatus.vl := reg_vl
   val reg_vtypes = Reg(Vec(32, Bits(width=16)))
@@ -329,7 +329,13 @@ class CSRFile(perfEventSets: EventSets = new EventSets(Seq()))(implicit p: Param
   val reg_vxrm = Reg(Bits(width=3))
   val reg_vxsat = Reg(Bits(width=1))
 
-
+  // TODO_Vec: We support only one element width at a time for now
+  val global_vew = {
+     val all_enabled = reg_vews.map(x=> x =/= VEW_DISABLE)
+     val ff = FindFirst(Vec(all_enabled), 32, 0, (x: Int) => Bool(true))
+     val out = Mux1H(ff, reg_vews)
+     out
+  }
   val mip = Wire(init=reg_mip)
   mip.lip := (io.interrupts.lip: Seq[Bool])
   mip.mtip := io.interrupts.mtip
@@ -515,7 +521,7 @@ class CSRFile(perfEventSets: EventSets = new EventSets(Seq()))(implicit p: Param
     io_dec.read_illegal := reg_mstatus.prv < io_dec.csr(9,8) ||
       !decodeAny(read_mapping) ||
       io_dec.csr === CSRs.sptbr && !allow_sfence_vma ||
-      (io_dec.csr.inRange(CSR.firstCtr, CSR.firstCtr + CSR.nCtr) || io_dec.csr.inRange(CSR.firstCtrH, CSR.firstCtrH + CSR.nCtr)) && reg_mstatus.prv <= PRV.S && hpm_mask(io_dec.csr(log2Ceil(CSR.firstCtr)-1,0)) ||
+         (io_dec.csr.inRange(CSR.firstCtr, CSR.firstCtr + CSR.nCtr) || io_dec.csr.inRange(CSR.firstCtrH, CSR.firstCtrH + CSR.nCtr)) && reg_mstatus.prv <= PRV.S && hpm_mask(io_dec.csr(log2Ceil(CSR.firstCtr)-1,0)) ||
       Bool(usingDebug) && decodeAny(debug_csrs) && !reg_debug ||
       Bool(usingFPU) && decodeAny(fp_csrs) && io_dec.fp_illegal
     io_dec.write_illegal := io_dec.csr(11,10).andR
@@ -779,10 +785,10 @@ class CSRFile(perfEventSets: EventSets = new EventSets(Seq()))(implicit p: Param
     }
     //Todo_vec: Parametrize this
     when (decoded_addr(CSRs.vcs))   {
-                                      reg_vl    := Mux(reg_vews(0) === VEW_64, 2, 4)   // TODO_VEC: fix this
+                                      reg_vl    := Mux(global_vew === VEW_64, 2, 4)   // TODO_VEC: fix this
                                       reg_vxrm  := wdata >> 1;
                                       reg_vxsat := wdata; }
-    when (decoded_addr(CSRs.vl))    { reg_vl    := Mux(reg_vews(0) === VEW_32, 2, 4) } // TODO_VEC: fix this
+    when (decoded_addr(CSRs.vl))    { reg_vl    := Mux(global_vew === VEW_64, 2, 4) } // TODO_VEC: fix this
     when (decoded_addr(CSRs.vxrm))  { reg_vxrm  := wdata }
     when (decoded_addr(CSRs.vxsat)) { reg_vxsat := wdata }
 
