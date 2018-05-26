@@ -102,7 +102,7 @@ trait VecCfgConstants {
 
    val VEREP_SZ = 5
    val VEREP_UINT = UInt("b00000")
-   val VEREP_INT = UInt("b00010")
+   val VEREP_INT = UInt("b00001")
    val VEREP_FP = UInt("b00011")
 
    val VEW_SZ = 6

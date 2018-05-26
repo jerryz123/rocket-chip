@@ -748,10 +748,10 @@ class CSRFile(perfEventSets: EventSets = new EventSets(Seq()))(implicit p: Param
           printf("Error in vcfg. Only vectors supported right now, %x %x\n", wdata, Cat(valid_shape_i))
        }
        // Check that element type is correct
-       val valid_erep_i = (0 until 4).map(x=> (!new_enabled(x)) || new_vereps(x) === VEREP_FP)
+       val valid_erep_i = (0 until 4).map(x=> (!new_enabled(x)) || new_vereps(x) === VEREP_FP || new_vereps(x) === VEREP_INT || new_vereps(x) === VEREP_UINT)
        val valid_erep   = valid_erep_i.reduce(_&&_)
        when (!valid_erep) {
-          printf("Error in vcfg. Only IEEE fp supported right now, %x %x\n", wdata, Cat(valid_erep_i))
+          printf("Error in vcfg. Only IEEE fp/Int supported right now, %x %x\n", wdata, Cat(valid_erep_i))
        }
 
        // Check that element width is correct
@@ -773,7 +773,7 @@ class CSRFile(perfEventSets: EventSets = new EventSets(Seq()))(implicit p: Param
        val all_vshapes_equal = (0 until 32).map(x=> !enabled_vshapes(x) || all_vews(x) === first_vec_ew).reduce(_&&_)
        // TODO_Vec: Hack right now, also this assumes at least 1 configured regsiter
        for (i <- 0 until 32) {
-          printf("%d %x %x %x %x\n", i, all_types(i), all_vshapes(i), all_enabled(i), enabled_vshapes(i))
+          printf("%d %x %x %x %x %x %x\n", i, all_types(i), all_vshapes(i), all_vereps(i), all_vews(i), all_enabled(i), enabled_vshapes(i))
        }
        when (!all_vshapes_equal) {
           printf("Error in vcfg. Right now all vector regs must be same length, and you need at least 1 %x %x %x\n",
