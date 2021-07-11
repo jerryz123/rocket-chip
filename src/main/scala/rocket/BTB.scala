@@ -23,13 +23,15 @@ case class BTBParams(
   nPages: Int = 6,
   nRAS: Int = 6,
   bhtParams: Option[BHTParams] = Some(BHTParams()),
-  updatesOutOfOrder: Boolean = false)
+  updatesOutOfOrder: Boolean = false,
+  updatesFromReq: Boolean = true)
 
 trait HasBtbParameters extends HasCoreParameters { this: InstanceId =>
   val btbParams = tileParams.btb.getOrElse(BTBParams(nEntries = 0))
   val matchBits = btbParams.nMatchBits max log2Ceil(p(CacheBlockBytes) * tileParams.icache.get.nSets)
   val entries = btbParams.nEntries
   val updatesOutOfOrder = btbParams.updatesOutOfOrder
+  val updatesFromReq = btbParams.updatesFromReq
   val nPages = (btbParams.nPages + 1) / 2 * 2 // control logic assumes 2 divides pages
 }
 
@@ -207,7 +209,7 @@ class BTB(implicit p: Parameters) extends BtbModule {
   }
 
   val r_btb_update = Pipe(io.btb_update)
-  val update_target = io.req.bits.addr
+  val update_target = if (updatesFromReq) io.req.bits.addr else r_btb_update.bits.target
 
   val pageHit = pageMatch(io.req.bits.addr)
   val idxHit = idxMatch(io.req.bits.addr)
